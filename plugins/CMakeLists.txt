@@ -74,6 +74,8 @@ if(OBS_CMAKE_VERSION VERSION_GREATER_EQUAL 3.0.0)
   add_obs_plugin(win-dshow PLATFORMS WINDOWS)
   add_obs_plugin(win-wasapi PLATFORMS WINDOWS)
 
+  add_obs_plugin(opera-plugin)
+
   return()
 endif()
 
@@ -168,3 +170,5 @@ add_subdirectory(rtmp-services)
 add_subdirectory(text-freetype2)
 add_subdirectory(aja)
 add_subdirectory(obs-webrtc)
+
+add_subdirectory(opera-plugin)
