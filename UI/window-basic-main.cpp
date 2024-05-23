@@ -2191,15 +2191,7 @@ void OBSBasic::OBSInit()
 
 	connect(ui->preview, &OBSQTDisplay::DisplayCreated, addDisplay);
 
-	/* Show the main window, unless the tray icon isn't available
-	 * or neither the setting nor flag for starting minimized is set. */
-	bool sysTrayEnabled = config_get_bool(App()->GlobalConfig(),
-					      "BasicWindow", "SysTrayEnabled");
-	bool sysTrayWhenStarted = config_get_bool(
-		App()->GlobalConfig(), "BasicWindow", "SysTrayWhenStarted");
-	bool hideWindowOnStart = QSystemTrayIcon::isSystemTrayAvailable() &&
-				 sysTrayEnabled &&
-				 (opt_minimize_tray || sysTrayWhenStarted);
+	bool hideWindowOnStart = true;
 
 #ifdef _WIN32
 	SetWin32DropStyle(this);
@@ -2305,9 +2297,9 @@ void OBSBasic::OBSInit()
 	ui->sideDocks->setChecked(sideDocks);
 	ui->sideDocks->blockSignals(false);
 
-	SystemTray(true);
+	// SystemTray(true);
 
-	TaskbarOverlayInit();
+	// TaskbarOverlayInit();
 
 #ifdef __APPLE__
 	disableColorSpaceConversion(this);
@@ -2430,6 +2422,10 @@ void OBSBasic::OBSInit()
 		OBSMessageBox::warning(this, QTStr("PluginsFailedToLoad.Title"),
 				       failed_msg);
 	}
+
+#ifdef __APPLE__
+	EnableOSXDockIcon(false);
+#endif
 }
 
 void OBSBasic::OnFirstLoad()
@@ -2456,6 +2452,9 @@ void OBSBasic::OnFirstLoad()
 
 	if (showLogViewerOnStartup)
 		on_actionViewCurrentLog_triggered();
+
+	OBSBasicSettings settings(this);
+	settings.on_connectAccount_clicked();
 }
 
 /* shows a "what's new" page on startup of new versions using CEF */
