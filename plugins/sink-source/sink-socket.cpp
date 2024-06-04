@@ -14,9 +14,9 @@ uint8_t* read_file_to_memory(const char* filepath, uint32_t* out_size);
 
 
 void* sink_socket_listener(void* arg) {
-    struct sink_source *context = arg;
+    struct sink_source *context = (sink_source *)arg;
 
-    uint8_t* write_buffer = bzalloc(BUFFER_SIZE);
+    uint8_t* write_buffer = (uint8_t*)bzalloc(BUFFER_SIZE);
     uint32_t bytes_in_buffer = 0;
 
     int client_fd;
@@ -102,7 +102,7 @@ int init_sink_thread(struct sink_source *context) {
         return 1;
     }
 
-    context->read_buffer = bzalloc(BUFFER_SIZE);
+    context->read_buffer = (uint8_t*)bzalloc(BUFFER_SIZE);
     context->read_buffer_data_size = 0;
     context->image_decoded = true;
     context->decoding_image = false;

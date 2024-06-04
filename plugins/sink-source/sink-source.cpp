@@ -15,14 +15,14 @@ static const char *sink_source_get_name(void *unused)
 static void *sink_source_create(obs_data_t *settings, obs_source_t *source)
 {
     UNUSED_PARAMETER(settings);
-	struct sink_source *context = bzalloc(sizeof(struct sink_source));
+	struct sink_source *context = (sink_source *)bzalloc(sizeof(struct sink_source));
     context->stop_signal = false;
 	context->source = source;
     // TODO: How do we get the size of the image?
     context->width = 1280;
     context->height = 720;
     int img_size = context->width * context->height * 4;
-    context->img_data = bzalloc(img_size);
+    context->img_data = (uint8_t*)bzalloc(img_size);
     memset(context->img_data, 0, img_size);
             
     init_sink_thread(context);
@@ -36,7 +36,7 @@ static void *sink_source_create(obs_data_t *settings, obs_source_t *source)
 
 static void sink_source_destroy(void *data)
 {
-	struct sink_source *context = data;
+	struct sink_source *context = (sink_source *)data;
     join_sink_thread(context);
     bfree(context->img_data);
 	bfree(context);
@@ -44,19 +44,19 @@ static void sink_source_destroy(void *data)
 
 static uint32_t sink_source_getwidth(void *data)
 {
-	struct sink_source *context = data;
+	struct sink_source *context = (sink_source *)data;
     return context->width;
 }
 
 static uint32_t sink_source_getheight(void *data)
 {
-	struct sink_source *context = data;
+	struct sink_source *context = (sink_source *)data;
 	return context->height;
 }
 
 static void sink_source_render(void *data, gs_effect_t *effect)
 {
-	struct sink_source *context = data;
+	struct sink_source *context = (sink_source *)data;
 
 	const bool previous = gs_framebuffer_srgb_enabled();
 	gs_enable_framebuffer_srgb(true);
@@ -77,7 +77,7 @@ static void sink_source_render(void *data, gs_effect_t *effect)
 static void sink_source_tick(void *data, float seconds)
 {
     UNUSED_PARAMETER(seconds);
-	struct sink_source *context = data;
+	struct sink_source *context = (sink_source *)data;
 
     if (!atomic_load(&context->image_decoded)) {
         atomic_store(&context->decoding_image, true);

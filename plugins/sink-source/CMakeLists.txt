@@ -5,7 +5,7 @@ legacy_check()
 add_library(sink-source MODULE)
 add_library(OBS::sink-source ALIAS sink-source)
 
-target_sources(sink-source PRIVATE sink-source.c sink-file-util.c sink-image-util.c sink-socket.c)
+target_sources(sink-source PRIVATE sink-source.cpp sink-file-util.cpp sink-image-util.cpp sink-socket.cpp)
 
 target_link_libraries(sink-source PRIVATE OBS::libobs $<$<PLATFORM_ID:Windows>:OBS::w32-pthreads> FFmpeg::avformat FFmpeg::avcodec FFmpeg::avutil FFmpeg::swscale)
 
