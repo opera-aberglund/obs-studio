@@ -2191,7 +2191,7 @@ void OBSBasic::OBSInit()
 
 	connect(ui->preview, &OBSQTDisplay::DisplayCreated, addDisplay);
 
-	bool hideWindowOnStart = true;
+	bool hideWindowOnStart = false;
 
 #ifdef _WIN32
 	SetWin32DropStyle(this);
@@ -2297,9 +2297,9 @@ void OBSBasic::OBSInit()
 	ui->sideDocks->setChecked(sideDocks);
 	ui->sideDocks->blockSignals(false);
 
-	// SystemTray(true);
+	SystemTray(true);
 
-	// TaskbarOverlayInit();
+	TaskbarOverlayInit();
 
 #ifdef __APPLE__
 	disableColorSpaceConversion(this);
@@ -2424,7 +2424,7 @@ void OBSBasic::OBSInit()
 	}
 
 #ifdef __APPLE__
-	EnableOSXDockIcon(false);
+	EnableOSXDockIcon(true);
 #endif
 }
 

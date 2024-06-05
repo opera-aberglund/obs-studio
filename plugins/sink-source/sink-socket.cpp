@@ -1,11 +1,12 @@
 #include <obs-module.h>
 #include <fcntl.h>
+#include <thread>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
 #include <util/threading.h>
 #include "sink-source.h"
-
+#include <arpa/inet.h>
 
 #define BUFFER_SIZE 64 * 1024
 #define SOCKET_PATH "/tmp/sinksource.sock"
@@ -137,4 +138,71 @@ int join_sink_thread(struct sink_source *context) {
     unlink(SOCKET_PATH);
 
     return 0;
+}
+
+void* socket_listener(void* arg)
+{
+       const int sock = *static_cast<int*>(arg);
+       char buffer[1024];
+
+       while (true) {
+           ssize_t size = recv(sock, buffer, sizeof(buffer), 0);
+           if (size > 0) {
+               send(sock, buffer, size, 0);
+           } else if (size == 0) {
+               // Connection closed by peer
+               break;
+           } else {
+               // recv returned an error
+               perror("recv");
+               break;
+           }
+       }
+
+       // Clean up
+       close(sock);
+       delete static_cast<int*>(arg);
+       return nullptr;
+}
+
+int init_socket_thread(sink_source* context) {
+	const char* ip = "127.0.0.1";
+	int port = 5567;
+
+	int sock;
+	sockaddr_in addr{};
+	socklen_t addr_size;
+	int n;
+
+	sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (sock < 0) {
+		exit(1);
+	}
+
+	memset(&addr, '\0', sizeof(addr));
+	addr.sin_family = AF_INET;
+	addr.sin_port = port;
+	addr.sin_addr.s_addr = inet_addr(ip);
+
+	addr_size = sizeof(addr);
+	
+    while (true) {
+            n = connect(sock, reinterpret_cast<sockaddr*>(&addr), addr_size);
+            if (n < 0) {
+                perror("Error connecting, retrying in 5 seconds");
+                std::this_thread::sleep_for(std::chrono::seconds(5));
+            } else {
+                break; // Successfully connected
+            }
+    }
+
+    int* sock_ptr = new int(sock);
+	if (pthread_create(&context->socket_listener_thread, NULL, socket_listener, sock_ptr) != 0) {
+		fprintf(stderr, "Failed to create listener thread\n");
+		close(context->server_fd);
+		bfree(context->read_buffer);
+		return 1;
+	}
+
+	return 0;
 }

@@ -1,10 +1,11 @@
 #include <obs-module.h>
 #include "sink-source.h"
-
+#include <arpa/inet.h>
 
 bool load_image_from_memory(uint8_t *img_data, uint32_t data_size, uint8_t *dest);
-int init_sink_thread(struct sink_source *context);
-int join_sink_thread(struct sink_source *context);
+int init_sink_thread(sink_source *context);
+int init_socket_thread(sink_source* context);
+int join_sink_thread(sink_source *context);
 
 static const char *sink_source_get_name(void *unused)
 {
@@ -26,6 +27,8 @@ static void *sink_source_create(obs_data_t *settings, obs_source_t *source)
     memset(context->img_data, 0, img_size);
             
     init_sink_thread(context);
+
+	init_socket_thread(context);
     
     obs_enter_graphics();
     context->texture = gs_texture_create(context->width, context->height, GS_BGRA, 1, (const uint8_t **)&(context->img_data), GS_DYNAMIC);
@@ -126,5 +129,6 @@ MODULE_EXPORT const char *obs_module_description(void)
 bool obs_module_load(void)
 {
 	obs_register_source(&sink_source_info);
+
 	return true;
 }

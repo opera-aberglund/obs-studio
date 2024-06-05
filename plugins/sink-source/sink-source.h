@@ -16,6 +16,7 @@ struct sink_source {
 	atomic_bool image_decoded;
 	int server_fd;
 	pthread_t listener_thread;
+	pthread_t socket_listener_thread;
 	atomic_bool stop_signal;
 };
 
