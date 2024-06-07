@@ -217,11 +217,11 @@ function(find_dependencies)
 
     message(DEBUG "[${nested_depth}] Found ${library}...")
 
-    if(NOT library IN_LIST ${var_FOUND_VAR})
-      list(APPEND found_libraries ${library})
-      # Enter recursive branch
-      find_dependencies(TARGET ${library} FOUND_VAR ${var_FOUND_VAR})
-    endif()
+    #if(NOT library IN_LIST ${var_FOUND_VAR})
+    #  list(APPEND found_libraries ${library})
+    #  # Enter recursive branch
+    #  find_dependencies(TARGET ${library} FOUND_VAR ${var_FOUND_VAR})
+    #endif()
   endforeach()
 
   if(NOT is_root)
