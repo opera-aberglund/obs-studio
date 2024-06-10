@@ -115,7 +115,7 @@ function(_handle_generator_expression_dependency library)
 
     set(${var_FOUND_VAR} "${var_FOUND_VAR}-NOTFOUND")
 
-    message(INFO "Checking ${library}...")
+    message(DEBUG "Checking ${library}...")
 
     if (library MATCHES "\\$<\\$<PLATFORM_ID:[^>]+>:.+>" OR library MATCHES "\\$<\\$<NOT:\\$<PLATFORM_ID:[^>]+>>:.+>")
         # Platform-dependent generator expression found. Platforms are a comma-separated list of CMake host OS identifiers.
@@ -195,8 +195,8 @@ function(find_dependencies)
     # * INTERFACE_LINK_LIBRARIES are transitive dependencies
     get_target_property(linked_libraries ${var_TARGET} LINK_LIBRARIES)
     get_target_property(interface_libraries ${var_TARGET} INTERFACE_LINK_LIBRARIES)
-    message(INFO "[${nested_depth}] Linked libraries in target ${var_TARGET}: ${linked_libraries}")
-    message(INFO "[${nested_depth}] Linked interface libraries in target ${var_TARGET}: ${interface_libraries}")
+    message(DEBUG "[${nested_depth}] Linked libraries in target ${var_TARGET}: ${linked_libraries}")
+    message(DEBUG "[${nested_depth}] Linked interface libraries in target ${var_TARGET}: ${interface_libraries}")
 
     # Consider CMake targets only
     list(FILTER linked_libraries INCLUDE REGEX ".+::.+")
