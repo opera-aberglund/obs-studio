@@ -10,6 +10,6 @@
 [submodule "plugins/obs-websocket"]
 	path = plugins/obs-websocket
 	url = https://github.com/opera-gaming/obs-websocket.git
-[submodule "/plugins/sink-source/libdatachannel"]
+[submodule "plugins/sink-source/libdatachannel"]
 	path = plugins/sink-source/libdatachannel
 	url = git@github.com:opera-gaming/libdatachannel.git
