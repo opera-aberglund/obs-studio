@@ -8,6 +8,7 @@
 #include "sink-source.hpp"
 #include "sink-socket.hpp"
 #include "rtc/peerconnection.hpp"
+#include <fstream>
 
 #include <arpa/inet.h>
 #include <nlohmann/json.hpp>
@@ -16,6 +17,27 @@
 #define SOCKET_PATH "/tmp/sinksource.sock"
 
 using namespace nlohmann;
+
+using std::shared_ptr;
+using std::weak_ptr;
+template<class T> weak_ptr<T> make_weak_ptr(shared_ptr<T> ptr)
+{
+	return ptr;
+}
+
+void log_message(const std::string &message)
+{
+	std::ofstream log_file("/Users/alex/Desktop/native_host_log.txt",
+			       std::ios_base::app);
+	if (log_file.is_open()) {
+		std::time_t now = std::time(nullptr);
+		log_file << std::ctime(&now) << ": " << message << std::endl;
+	} else {
+		std::cerr
+			<< "Unable to open log file."
+			<< std::endl; // Optional: error message if the log file can't be opened
+	}
+}
 
 uint8_t *read_file_to_memory(const char *filepath, uint32_t *out_size);
 
@@ -158,12 +180,102 @@ int join_sink_thread(sink_source *context)
 	return 0;
 }
 
+std::shared_ptr<rtc::PeerConnection> createPeerConnection()
+{
+	auto pc = std::make_shared<rtc::PeerConnection>();
+
+	pc->onStateChange([](rtc::PeerConnection::State state) {
+		std::string message = "ICE state: ";
+		switch (state) {
+		case rtc::PeerConnection::State::New:
+			message += "New";
+			break;
+		case rtc::PeerConnection::State::Connecting:
+			message += "Connecting";
+			break;
+		case rtc::PeerConnection::State::Connected:
+			message += "Connected";
+			break;
+		case rtc::PeerConnection::State::Failed:
+			message += "Failed";
+			break;
+		case rtc::PeerConnection::State::Disconnected:
+			message += "Disconnected";
+			break;
+		case rtc::PeerConnection::State::Closed:
+			message += "Closed";
+			break;
+		default:
+			message += "Unknown";
+			break;
+		}
+
+		// Add the numerical state value for additional detail
+		message += " (State code: " +
+			   std::to_string(static_cast<int>(state)) + ")";
+
+		// Log the message
+		log_message(message);
+	});
+
+	pc->onGatheringStateChange(
+		[](rtc::PeerConnection::GatheringState state) {
+			log_message("Gathering State: " +
+				    std::to_string(static_cast<int>(state)));
+		});
+
+	pc->onDataChannel([](std::shared_ptr<rtc::DataChannel> dc) {
+		log_message("DataChannel received with label \"" + dc->label() +
+			    "\"");
+
+		dc->onOpen([id = dc->label()]() {
+			log_message("DataChannel with label \"" + id +
+				    "\" is open");
+		});
+
+		dc->onAvailable([id = dc->label()]() {
+			log_message("DataChannel with label \"" + id +
+				    "\" is available");
+		});
+
+		dc->onError([id = dc->label()](std::string error) {
+			log_message("DataChannel with label \"" + id +
+				    "\" encountered an error: " + error);
+		});
+
+		dc->onClosed([id = dc->label()]() { // Use label as an identifier
+			log_message("DataChannel from \"" + id + "\" closed");
+		});
+
+		dc->onMessage([id = dc->label(),
+			       wdc = std::weak_ptr<rtc::DataChannel>(dc)](
+				      auto data) { // Use label as an identifier
+			if (std::holds_alternative<std::string>(data)) {
+				log_message("Message from \"" + id +
+					    "\" received: " +
+					    std::get<std::string>(data));
+			} else {
+				log_message("Binary message from \"" + id +
+					    "\" received, size=" +
+					    std::to_string(
+						    std::get<rtc::binary>(data)
+							    .size()));
+			}
+			if (auto dc = wdc.lock()) {
+				dc->send("Pong");
+			}
+		});
+	});
+
+	return pc;
+}
+
 void *socket_listener(void *arg)
 {
 	const int sock = *static_cast<int *>(arg);
 	char buffer[10000];
 
-	auto pc = std::make_shared<rtc::PeerConnection>();
+	auto pc = createPeerConnection();
 
 	while (true) {
 		ssize_t size = recv(sock, buffer, sizeof(buffer), 0);
