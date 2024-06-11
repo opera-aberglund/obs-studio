@@ -8,6 +8,8 @@
 #include "sink-source.hpp"
 #include "sink-socket.hpp"
 #include "rtc/peerconnection.hpp"
+#include "rtc/rtcpreceivingsession.hpp"
+
 #include <fstream>
 
 #include <arpa/inet.h>
@@ -180,8 +182,11 @@ int join_sink_thread(sink_source *context)
 	return 0;
 }
 
-std::shared_ptr<rtc::PeerConnection> createPeerConnection()
+void *socket_listener(void *arg)
 {
+	const int sock = *static_cast<int *>(arg);
+	char buffer[10000];
+
 	auto pc = std::make_shared<rtc::PeerConnection>();
 
 	pc->onStateChange([](rtc::PeerConnection::State state) {
@@ -219,83 +224,49 @@ std::shared_ptr<rtc::PeerConnection> createPeerConnection()
 	});
 
 	pc->onGatheringStateChange(
-		[](rtc::PeerConnection::GatheringState state) {
-			log_message("Gathering State: " +
-				    std::to_string(static_cast<int>(state)));
-		});
-
-	pc->onDataChannel([](std::shared_ptr<rtc::DataChannel> dc) {
-		log_message("DataChannel received with label \"" + dc->label() +
-			    "\"");
-
-		dc->onOpen([id = dc->label()]() {
-			log_message("DataChannel with label \"" + id +
-				    "\" is open");
-		});
-
-		dc->onAvailable([id = dc->label()]() {
-			log_message("DataChannel with label \"" + id +
-				    "\" is available");
-		});
-
-		dc->onError([id = dc->label()](std::string error) {
-			log_message("DataChannel with label \"" + id +
-				    "\" encountered an error: " + error);
-		});
-
-		dc->onClosed([id = dc->label()]() { // Use label as an identifier
-			log_message("DataChannel from \"" + id + "\" closed");
-		});
-
-		dc->onMessage([id = dc->label(),
-			       wdc = std::weak_ptr<rtc::DataChannel>(dc)](
-				      auto data) { // Use label as an identifier
-			if (std::holds_alternative<std::string>(data)) {
-				log_message("Message from \"" + id +
-					    "\" received: " +
-					    std::get<std::string>(data));
-			} else {
-				log_message("Binary message from \"" + id +
-					    "\" received, size=" +
-					    std::to_string(
-						    std::get<rtc::binary>(data)
-							    .size()));
-			}
-			if (auto dc = wdc.lock()) {
-				dc->send("Pong");
+		[pc, sock](rtc::PeerConnection::GatheringState state) {
+			log_message("Gathering state changed");
+			if (state ==
+			    rtc::PeerConnection::GatheringState::Complete) {
+				log_message("Gathering state is complete");
+				auto description = pc->localDescription();
+				json message = {
+					{"type", description->typeString()},
+					{"sdp",
+					 std::string(description.value())}};
+				send(sock, message.dump().c_str(),
+				     message.dump().size(), 0);
 			}
 		});
-	});
 
-	return pc;
-}
+	rtc::Description::Video media("video",
+				      rtc::Description::Direction::RecvOnly);
+	media.addH264Codec(96);
+	media.setBitrate(
+		3000); // Request 3Mbps (Browsers do not encode more than 2.5MBps from a webcam)
 
-void *socket_listener(void *arg)
-{
-	const int sock = *static_cast<int *>(arg);
-	char buffer[10000];
+	auto track = pc->addTrack(media);
 
-	auto pc = createPeerConnection();
+	auto session = std::make_shared<rtc::RtcpReceivingSession>();
+	track->setMediaHandler(session);
+
+	track->onMessage(
+		[](const rtc::binary &) {
+			// This is an RTP packet
+			log_message("Received RTP packet");
+		},
+		nullptr);
+
+	pc->setLocalDescription();
 
 	while (true) {
 		ssize_t size = recv(sock, buffer, sizeof(buffer), 0);
 		if (size > 0) {
-			// Assume we received an offer here for now
+			// Assume we received an answer here for now
 			json j = json::parse(buffer);
-			rtc::Description offer(j["sdp"].get<std::string>(),
-					       j["type"].get<std::string>());
-			pc->setRemoteDescription(offer);
-
-			// Generate an answer
-			pc->setLocalDescription();
-			auto description = pc->localDescription();
-			json message = {{"type", description->typeString()},
-					{"sdp",
-					 std::string(description.value())}};
-			const auto message_str = to_string(message);
-
-			// Send the answer
-			send(sock, message_str.c_str(), message_str.size(), 0);
+			rtc::Description answer(j["sdp"].get<std::string>(),
+						j["type"].get<std::string>());
+			pc->setRemoteDescription(answer);
 		} else if (size == 0) {
 			// Connection closed by peer
 			break;
